@@ -27,14 +27,20 @@ jobs:
           PROJECT_DIR=$(dirname "$(find project -name settings.gradle -print -quit)")
           echo "PROJECT_DIR=$PROJECT_DIR" >> $GITHUB_ENV
 
-      - name: Fix Duplicate Kotlin Dependencies
+      - name: Automatic Logo and Name Injector
         run: |
           cd "$PROJECT_DIR"
-          # Find app-level build.gradle to inject resolution strategy
-          APP_GRADLE=$(find . -name "build.gradle" -not -path "*/build/*" | grep "app/build.gradle" || find . -name "build.gradle" -not -path "*/build/*" | head -n 1)
-          echo "Modifying: $APP_GRADLE"
           
-          # Append resolution strategy to force identical kotlin stdlib versions
+          # 1. Automatic Logo Replacement
+          if [ -f "../../ic_launcher.png" ]; then
+            echo "New logo found! Injecting into all mipmap folders..."
+            find . -type d -name "mipmap-*" | while read -r dir; do
+              cp -f ../../ic_launcher.png "$dir/ic_launcher.png"
+            done
+          fi
+          
+          # 2. Fix Duplicate Kotlin Dependencies
+          APP_GRADLE=$(find . -name "build.gradle" -not -path "*/build/*" | grep "app/build.gradle" || find . -name "build.gradle" -not -path "*/build/*" | head -n 1)
           cat << 'EOF' >> "$APP_GRADLE"
 
           configurations.all {
