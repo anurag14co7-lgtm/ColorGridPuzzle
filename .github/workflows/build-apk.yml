@@ -27,20 +27,28 @@ jobs:
           PROJECT_DIR=$(dirname "$(find project -name settings.gradle -print -quit)")
           echo "PROJECT_DIR=$PROJECT_DIR" >> $GITHUB_ENV
 
-      - name: Automatic Logo and Name Injector
+      - name: Inject Premium Game Features
         run: |
           cd "$PROJECT_DIR"
           
           # 1. Automatic Logo Replacement
           if [ -f "../../ic_launcher.png" ]; then
-            echo "New logo found! Injecting into all mipmap folders..."
-            find . -type d -name "mipmap-*" | while read -r dir; do
+            echo "New logo found! Force injecting into all mipmap and drawable folders..."
+            find . -type d \( -name "mipmap-*" -o -name "drawable-*" \) | while read -r dir; do
               cp -f ../../ic_launcher.png "$dir/ic_launcher.png"
+              cp -f ../../ic_launcher.png "$dir/ic_launcher_round.png" 2>/dev/null || true
+              cp -f ../../ic_launcher.png "$dir/ic_launcher_background.png" 2>/dev/null || true
+              cp -f ../../ic_launcher.png "$dir/ic_launcher_foreground.png" 2>/dev/null || true
             done
           fi
-          
-          # 2. Fix Duplicate Kotlin Dependencies
+
+          # 2. Add Sound Effects & Confetti Libraries to build.gradle
           APP_GRADLE=$(find . -name "build.gradle" -not -path "*/build/*" | grep "app/build.gradle" || find . -name "build.gradle" -not -path "*/build/*" | head -n 1)
+          
+          # Inject Confetti animation library dependency
+          sed -i '/dependencies {/a \    implementation "nl.dionsegijn:konfetti-xml:2.0.2"' "$APP_GRADLE"
+          
+          # Fix Duplicate Kotlin Dependencies and Force Versioning
           cat << 'EOF' >> "$APP_GRADLE"
 
           configurations.all {
@@ -52,6 +60,17 @@ jobs:
               }
           }
           EOF
+
+          # 3. Add Timer & Confetti in Main Game Layout
+          MAIN_XML=$(find . -name "activity_main.xml" -not -path "*/build/*" | head -n 1)
+          if [ -f "$MAIN_XML" ]; then
+            echo "Injecting Timer UI and Confetti View into activity_main.xml"
+            # Add TextView for Timer and KonfettiView before the closing tag of Layout
+            sed -i '/<\/RelativeLayout>/i \    <TextView android:id="@+id/timerTextView" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Time: 60s" android:textSize="20sp" android:textStyle="bold" android:textColor="#FF0000" android:layout_alignParentTop="true" android:layout_centerHorizontal="true" android:layout_marginTop="16dp"/>' "$MAIN_XML"
+            sed -i '/<\/RelativeLayout>/i \    <nl.dionsegijn.konfetti.xml.KonfettiView android:id="@+id/konfettiView" android:layout_width="match_wrap" android:layout_height="match_wrap" android:layout_alignParentBottom="true"/>' "$MAIN_XML"
+            # Handle ConstraintLayout cases if present
+            sed -i '/<\/androidx.constraintlayout.widget.ConstraintLayout>/i \    <TextView android:id="@+id/timerTextView" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Time: 60s" android:textSize="20sp" android:textStyle="bold" android:textColor="#FF0000"/>' "$MAIN_XML"
+          fi
 
       - name: Setup Gradle Wrapper & Build
         run: |
