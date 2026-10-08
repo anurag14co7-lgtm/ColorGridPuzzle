@@ -20,24 +20,23 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v4
-        with:
-          gradle-version: '8.9'
-
       - name: Find project ZIP
         run: |
           mkdir project
           unzip -q Color_Grid_Puzzle_Android_Project.zip -d project
-          echo "Files:"
-          find project -maxdepth 3 -type f | head -100
-
-      - name: Build APK
-        run: |
           PROJECT_DIR=$(dirname "$(find project -name settings.gradle -print -quit)")
-          echo "Project directory: $PROJECT_DIR"
+          echo "PROJECT_DIR=$PROJECT_DIR" >> $GITHUB_ENV
+
+      - name: Setup Gradle Wrapper & Build
+        run: |
           cd "$PROJECT_DIR"
-          gradle assembleDebug --no-daemon --stacktrace --info
+          # Agar gradlew file nahi hai, to naye wrapper ko initialize karein
+          if [ ! -f "gradlew" ]; then
+            echo "Generating Gradle Wrapper..."
+            gradle wrapper --gradle-version 8.9
+          fi
+          chmod +x gradlew
+          ./gradlew assembleDebug --no-daemon --stacktrace
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
